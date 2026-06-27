@@ -34,12 +34,12 @@ function Dashboard() {
   ];
 
   return (
-    <div className="max-w-5xl space-y-8">
+    <div className="w-full max-w-5xl space-y-6 sm:space-y-8 px-2 sm:px-0">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground mt-1">Overview of surveyors and executives.</p>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
         {stats.map((s) => (
           <Link key={s.label} to={s.to} className="group">
             <Card className="transition-shadow hover:shadow-md">

@@ -36,12 +36,17 @@ function AdminLayout() {
   ] as const;
 
   return (
-    <div className="min-h-screen flex bg-muted/20">
-      <aside className="w-60 border-r bg-background flex flex-col">
-        <div className="p-6 border-b">
+    <div className="min-h-screen flex flex-col bg-muted/20 md:flex-row">
+      <aside className="border-b bg-background md:w-60 md:border-b-0 md:border-r md:flex md:flex-col">
+        <div className="flex items-center justify-between px-4 py-4 md:px-6 md:py-6">
           <h1 className="text-lg font-semibold tracking-tight">Admin Panel</h1>
+          <div className="md:hidden">
+            <Button variant="outline" size="sm" onClick={signOut}>
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-        <nav className="flex-1 p-3 space-y-1">
+        <nav className="flex gap-2 overflow-x-auto px-3 pb-3 md:flex-1 md:flex-col md:gap-1 md:p-3">
           {nav.map((item) => {
             const active = pathname.startsWith(item.to);
             return (
@@ -49,8 +54,8 @@ function AdminLayout() {
                 key={item.to}
                 to={item.to}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
-                  active ? "bg-primary text-primary-foreground" : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                  "flex items-center gap-2 rounded-md px-3 py-2 text-sm whitespace-nowrap transition-colors",
+                  active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
                 <item.icon className="h-4 w-4" />
@@ -59,14 +64,14 @@ function AdminLayout() {
             );
           })}
         </nav>
-        <div className="p-3 border-t space-y-2">
+        <div className="hidden border-t p-3 space-y-2 md:block">
           {email && <p className="text-xs text-muted-foreground px-2 truncate">{email}</p>}
           <Button variant="outline" size="sm" className="w-full justify-start" onClick={signOut}>
             <LogOut className="h-4 w-4 mr-2" /> Sign out
           </Button>
         </div>
       </aside>
-      <main className="flex-1 p-8 overflow-auto">
+      <main className="flex-1 p-4 overflow-auto sm:p-6 md:p-8">
         <Outlet />
       </main>
     </div>

@@ -43,14 +43,22 @@ export type Database = {
       }
       surveyors: {
         Row: {
-          address: string
-          company_name: string
-          created_at: string
-          email: string
-          id: string
-          name: string
-          number: string
-          registration_number: string
+          id: string;
+  title: string;
+  first_name: string;
+  middle_name: string;
+  last_name: string;
+  surcon_registration_number: string;
+  surcon_prefix: string;
+  date_of_birth: string;
+  email: string;
+  phone_number: string;
+  whatsapp_number: string;
+  company_name: string;
+  company_address: string;
+  residency: string;
+  profile_image_url: string;
+  is_active: boolean;
           updated_at: string
         }
         Insert: {

@@ -77,17 +77,17 @@ function ExecutivesPage() {
   };
 
   return (
-    <div className="max-w-6xl space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="w-full max-w-6xl space-y-6 px-2 sm:px-0">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Executives</h1>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Executives</h1>
           <p className="text-muted-foreground mt-1">{data.length} total</p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Add Executive</Button>
+            <Button className="w-full sm:w-auto" onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Add Executive</Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-[95vw] sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>{editing ? "Edit" : "Add"} Executive</DialogTitle>
             </DialogHeader>
@@ -112,8 +112,8 @@ function ExecutivesPage() {
         </Dialog>
       </div>
 
-      <Card>
-        <Table>
+      <Card className="overflow-x-auto px-2 py-2 sm:px-4 sm:py-4">
+        <Table className="min-w-[620px] w-full">
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>

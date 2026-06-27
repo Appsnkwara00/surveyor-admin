@@ -18,16 +18,39 @@ export const Route = createFileRoute("/_authenticated/surveyors")({
 
 type Surveyor = {
   id: string;
-  name: string;
-  number: string;
+  title: string;
+  first_name: string;
+  middle_name: string;
+  last_name: string;
+  surcon_registration_number: string;
+  surcon_prefix: string;
+  date_of_birth: string;
   email: string;
+  phone_number: string;
+  whatsapp_number: string;
   company_name: string;
-  address: string;
-  registration_number: string;
+  company_address: string;
+  residency: string;
+  profile_image_url: string;
+  is_active: boolean;
 };
 
 const empty: Omit<Surveyor, "id"> = {
-  name: "", number: "", email: "", company_name: "", address: "", registration_number: "",
+  title: "",
+  first_name: "",
+  middle_name: "",
+  last_name: "",
+  surcon_registration_number: "",
+  surcon_prefix: "",
+  date_of_birth: "",
+  email: "",
+  phone_number: "",
+  whatsapp_number: "",
+  company_name: "",
+  company_address: "",
+  residency: "",
+  profile_image_url: "",
+  is_active: false,
 };
 
 function SurveyorsPage() {
@@ -40,18 +63,21 @@ function SurveyorsPage() {
     queryKey: ["surveyors"],
     queryFn: async () => {
       const { data, error } = await supabase.from("surveyors").select("*").order("created_at", { ascending: false });
+         console.log(error)
+         console.log(data)
       if (error) throw error;
-      return data as Surveyor[];
+      console.log(error)
+      return data as unknown as Surveyor[];
     },
   });
 
   const save = useMutation({
     mutationFn: async () => {
       if (editing) {
-        const { error } = await supabase.from("surveyors").update(form).eq("id", editing.id);
+        const { error } = await supabase.from("surveyors").update(form as any).eq("id", editing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("surveyors").insert(form);
+        const { error } = await supabase.from("surveyors").insert(form as any);
         if (error) throw error;
       }
     },
@@ -82,48 +108,90 @@ function SurveyorsPage() {
   const openNew = () => { setEditing(null); setForm(empty); setOpen(true); };
   const openEdit = (s: Surveyor) => {
     setEditing(s);
-    setForm({ name: s.name, number: s.number, email: s.email, company_name: s.company_name, address: s.address, registration_number: s.registration_number });
+    setForm({
+      title: s.title,
+      first_name: s.first_name,
+      middle_name: s.middle_name,
+      last_name: s.last_name,
+      surcon_registration_number: s.surcon_registration_number,
+      surcon_prefix: s.surcon_prefix,
+      date_of_birth: s.date_of_birth,
+      email: s.email,
+      phone_number: s.phone_number,
+      whatsapp_number: s.whatsapp_number,
+      company_name: s.company_name,
+      company_address: s.company_address,
+      residency: s.residency,
+      profile_image_url: s.profile_image_url,
+      is_active: s.is_active,
+    });
     setOpen(true);
   };
 
   const fields: { key: keyof typeof empty; label: string; type?: string }[] = [
-    { key: "name", label: "Name" },
-    { key: "number", label: "Number" },
+    { key: "title", label: "Title" },
+    { key: "first_name", label: "First Name" },
+    { key: "middle_name", label: "Middle Name" },
+    { key: "last_name", label: "Last Name" },
+    { key: "surcon_prefix", label: "SURCON Prefix" },
+    { key: "surcon_registration_number", label: "SURCON Registration Number" },
+    { key: "date_of_birth", label: "Date of Birth", type: "date" },
     { key: "email", label: "Email", type: "email" },
+    { key: "phone_number", label: "Phone Number", type: "tel" },
+    { key: "whatsapp_number", label: "WhatsApp Number", type: "tel" },
     { key: "company_name", label: "Company Name" },
-    { key: "address", label: "Address" },
-    { key: "registration_number", label: "Registration Number" },
+    { key: "company_address", label: "Company Address" },
+    { key: "residency", label: "Residency" },
+    { key: "profile_image_url", label: "Profile Image URL", type: "url" },
+    { key: "is_active", label: "Active", type: "checkbox" },
   ];
 
   return (
-    <div className="max-w-6xl space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="w-full max-w-6xl space-y-6 px-2 sm:px-0">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Surveyors</h1>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Surveyors</h1>
           <p className="text-muted-foreground mt-1">{data.length} total</p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Add Surveyor</Button>
+            <Button className="w-full sm:w-auto" onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Add Surveyor</Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-[95vw] sm:max-w-3xl">
             <DialogHeader>
               <DialogTitle>{editing ? "Edit" : "Add"} Surveyor</DialogTitle>
             </DialogHeader>
-            <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="space-y-3">
-              {fields.map((f) => (
-                <div key={f.key} className="space-y-1.5">
-                  <Label htmlFor={f.key}>{f.label}</Label>
-                  <Input
-                    id={f.key}
-                    type={f.type ?? "text"}
-                    required
-                    value={form[f.key]}
-                    onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
-                  />
-                </div>
-              ))}
-              <DialogFooter>
+            <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="grid gap-4 sm:grid-cols-2">
+              {fields.map((f) => {
+                const isCheckbox = f.type === "checkbox";
+                return (
+                  <div key={f.key} className={isCheckbox ? "flex items-center gap-2" : "space-y-1.5"}>
+                    {isCheckbox ? (
+                      <>
+                        <Input
+                          id={f.key}
+                          type="checkbox"
+                          checked={form[f.key] as boolean}
+                          onChange={(e) => setForm({ ...form, [f.key]: e.target.checked as Surveyor[typeof f.key] })}
+                        />
+                        <Label htmlFor={f.key}>{f.label}</Label>
+                      </>
+                    ) : (
+                      <>
+                        <Label htmlFor={f.key}>{f.label}</Label>
+                        <Input
+                          id={f.key}
+                          type={f.type ?? "text"}
+                          required
+                          value={form[f.key] as string}
+                          onChange={(e) => setForm({ ...form, [f.key]: e.target.value as Surveyor[typeof f.key] })}
+                        />
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+              <DialogFooter className="sm:col-span-2 flex justify-end">
                 <Button type="submit" disabled={save.isPending}>{save.isPending ? "Saving..." : "Save"}</Button>
               </DialogFooter>
             </form>
@@ -131,33 +199,37 @@ function SurveyorsPage() {
         </Dialog>
       </div>
 
-      <Card>
-        <Table>
+      <Card className="overflow-x-auto px-2 py-2 sm:px-4 sm:py-4">
+        <Table className="min-w-[820px] w-full">
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>Company</TableHead>
+              <TableHead>SURCON</TableHead>
               <TableHead>Email</TableHead>
-              <TableHead>Number</TableHead>
-              <TableHead>Reg. No.</TableHead>
+              <TableHead>Phone</TableHead>
+              <TableHead>WhatsApp</TableHead>
+              <TableHead>Residency</TableHead>
+              <TableHead>Active</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
             ) : data.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No surveyors yet. Add one to get started.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No surveyors yet. Add one to get started.</TableCell></TableRow>
             ) : data.map((s) => (
               <TableRow key={s.id}>
-                <TableCell className="font-medium">{s.name}</TableCell>
-                <TableCell>{s.company_name}</TableCell>
+                <TableCell className="font-medium">{[s.title, s.first_name, s.middle_name, s.last_name].filter(Boolean).join(" ")}</TableCell>
+                <TableCell>{[s.surcon_prefix, s.surcon_registration_number].filter(Boolean).join("-")}</TableCell>
                 <TableCell>{s.email}</TableCell>
-                <TableCell>{s.number}</TableCell>
-                <TableCell>{s.registration_number}</TableCell>
+                <TableCell>{s.phone_number}</TableCell>
+                <TableCell>{s.whatsapp_number}</TableCell>
+                <TableCell>{s.residency}</TableCell>
+                <TableCell>{s.is_active ? "Yes" : "No"}</TableCell>
                 <TableCell className="text-right space-x-1">
                   <Button size="icon" variant="ghost" onClick={() => openEdit(s)}><Pencil className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => { if (confirm(`Delete ${s.name}?`)) del.mutate(s.id); }}>
+                  <Button size="icon" variant="ghost" onClick={() => { if (confirm(`Delete ${[s.title, s.first_name, s.middle_name, s.last_name].filter(Boolean).join(" ")}?`)) del.mutate(s.id); }}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </TableCell>
