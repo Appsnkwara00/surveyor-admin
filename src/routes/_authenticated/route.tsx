@@ -39,7 +39,7 @@ function AdminLayout() {
     <div className="min-h-screen flex flex-col bg-muted/20 md:flex-row">
       <aside className="border-b bg-background md:w-60 md:border-b-0 md:border-r md:flex md:flex-col">
         <div className="flex items-center justify-between px-4 py-4 md:px-6 md:py-6">
-          <h1 className="text-lg font-semibold tracking-tight">Admin Panel</h1>
+          <h1 className="text-lg font-semibold tracking-tight">APPSN Admin Panel</h1>
           <div className="md:hidden">
             <Button variant="outline" size="sm" onClick={signOut}>
               <LogOut className="h-4 w-4" />

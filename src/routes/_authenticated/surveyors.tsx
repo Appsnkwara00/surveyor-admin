@@ -58,6 +58,7 @@ function SurveyorsPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Surveyor | null>(null);
   const [form, setForm] = useState(empty);
+  const [isUploading, setIsUploading] = useState(false);
 
   const { data = [], isLoading } = useQuery({
     queryKey: ["surveyors"],
@@ -71,13 +72,43 @@ function SurveyorsPage() {
     },
   });
 
+  const uploadImage = async (file: File) => {
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
+    if (!cloudName || !uploadPreset) {
+      throw new Error("Cloudinary is not configured. Please set the upload credentials first.");
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", uploadPreset);
+
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+      method: "POST",
+      body: formData,
+    });
+
+    const result = await response.json();
+    if (!response.ok || !result.secure_url) {
+      throw new Error(result.error?.message || "Image upload failed.");
+    }
+
+    return result.secure_url as string;
+  };
+
   const save = useMutation({
     mutationFn: async () => {
+      const payload = {
+        ...form,
+        profile_image_url: form.profile_image_url || null,
+      };
+
       if (editing) {
-        const { error } = await supabase.from("surveyors").update(form as any).eq("id", editing.id);
+        const { error } = await supabase.from("surveyors").update(payload as any).eq("id", editing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("surveyors").insert(form as any);
+        const { error } = await supabase.from("surveyors").insert(payload as any);
         if (error) throw error;
       }
     },
@@ -142,7 +173,6 @@ function SurveyorsPage() {
     { key: "company_name", label: "Company Name" },
     { key: "company_address", label: "Company Address" },
     { key: "residency", label: "Residency" },
-    { key: "profile_image_url", label: "Profile Image URL", type: "url" },
     { key: "is_active", label: "Active", type: "checkbox" },
   ];
 
@@ -191,6 +221,37 @@ function SurveyorsPage() {
                   </div>
                 );
               })}
+              <div className="sm:col-span-2 space-y-1.5">
+                <Label htmlFor="profile-image">Profile Image</Label>
+                <Input
+                  id="profile-image"
+                  type="file"
+                  accept="image/*"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+
+                    try {
+                      setIsUploading(true);
+                      const url = await uploadImage(file);
+                      setForm((current) => ({ ...current, profile_image_url: url }));
+                      toast.success("Image uploaded");
+                    } catch (error) {
+                      toast.error(error instanceof Error ? error.message : "Image upload failed");
+                    } finally {
+                      setIsUploading(false);
+                    }
+                  }}
+                />
+                {isUploading ? (
+                  <p className="text-sm text-muted-foreground">Uploading image...</p>
+                ) : form.profile_image_url ? (
+                  <div className="mt-2 space-y-2">
+                    <img src={form.profile_image_url} alt="Surveyor preview" className="h-24 w-24 rounded-md border object-cover" />
+                    <p className="break-all text-xs text-muted-foreground">{form.profile_image_url}</p>
+                  </div>
+                ) : null}
+              </div>
               <DialogFooter className="sm:col-span-2 flex justify-end">
                 <Button type="submit" disabled={save.isPending}>{save.isPending ? "Saving..." : "Save"}</Button>
               </DialogFooter>
@@ -203,29 +264,45 @@ function SurveyorsPage() {
         <Table className="min-w-[820px] w-full">
           <TableHeader>
             <TableRow>
+              <TableHead>Photo</TableHead>
               <TableHead>Name</TableHead>
+              <TableHead>Title</TableHead>
               <TableHead>SURCON</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Phone</TableHead>
               <TableHead>WhatsApp</TableHead>
+              <TableHead>Company</TableHead>
+              <TableHead>Address</TableHead>
               <TableHead>Residency</TableHead>
+              <TableHead>DOB</TableHead>
               <TableHead>Active</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={13} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
             ) : data.length === 0 ? (
-              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No surveyors yet. Add one to get started.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={13} className="text-center text-muted-foreground py-8">No surveyors yet. Add one to get started.</TableCell></TableRow>
             ) : data.map((s) => (
               <TableRow key={s.id}>
+                <TableCell>
+                  {s.profile_image_url ? (
+                    <img src={s.profile_image_url} alt={s.first_name} className="h-12 w-12 rounded-md border object-cover" />
+                  ) : (
+                    <div className="flex h-12 w-12 items-center justify-center rounded-md border text-xs text-muted-foreground">No image</div>
+                  )}
+                </TableCell>
                 <TableCell className="font-medium">{[s.title, s.first_name, s.middle_name, s.last_name].filter(Boolean).join(" ")}</TableCell>
+                <TableCell>{s.title}</TableCell>
                 <TableCell>{[s.surcon_prefix, s.surcon_registration_number].filter(Boolean).join("-")}</TableCell>
                 <TableCell>{s.email}</TableCell>
                 <TableCell>{s.phone_number}</TableCell>
                 <TableCell>{s.whatsapp_number}</TableCell>
+                <TableCell>{s.company_name}</TableCell>
+                <TableCell>{s.company_address}</TableCell>
                 <TableCell>{s.residency}</TableCell>
+                <TableCell>{s.date_of_birth}</TableCell>
                 <TableCell>{s.is_active ? "Yes" : "No"}</TableCell>
                 <TableCell className="text-right space-x-1">
                   <Button size="icon" variant="ghost" onClick={() => openEdit(s)}><Pencil className="h-4 w-4" /></Button>

@@ -5,7 +5,7 @@ import { ShieldCheck } from "lucide-react";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Admin Panel" },
+      { title: "APPSN Admin Panel" },
       { name: "description", content: "Manage surveyors and executives." },
     ],
   }),
