@@ -5,11 +5,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/executives")({
@@ -17,62 +16,88 @@ export const Route = createFileRoute("/_authenticated/executives")({
   component: ExecutivesPage,
 });
 
-type Executive = { id: string; name: string; post_held: string; message: string };
-const empty = { name: "", post_held: "", message: "" };
+type Executive = { id: string; name: string; position: string; image?: string | null };
+type ExecutiveForm = { name: string; position: string; image: string | null };
+type ExecutiveRow = { id: string; name: string; position: string; image?: string | null };
+const emptyForm: ExecutiveForm = { name: "", position: "", image: null };
 
 function ExecutivesPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Executive | null>(null);
-  const [form, setForm] = useState(empty);
+  const [form, setForm] = useState<ExecutiveForm>(emptyForm);
+  const [isUploading, setIsUploading] = useState(false);
 
   const { data = [], isLoading } = useQuery({
     queryKey: ["executives"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("executives").select("*").order("created_at", { ascending: false });
+      const { data: executiveRows, error } = await supabase.from("executives").select("*");
       if (error) throw error;
-      return data as Executive[];
+
+      const rows = (executiveRows as unknown as ExecutiveRow[]) ?? [];
+      return rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        position: row.position ?? "",
+        image: row.image ?? null,
+      })) as Executive[];
     },
   });
+
+  const uploadImage = async (file: File) => {
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
+    if (!cloudName || !uploadPreset) {
+      throw new Error("Cloudinary is not configured. Please set the upload credentials first.");
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", uploadPreset);
+
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+      method: "POST",
+      body: formData,
+    });
+
+    const result = await response.json();
+    if (!response.ok || !result.secure_url) {
+      throw new Error(result.error?.message || "Image upload failed.");
+    }
+
+    return result.secure_url as string;
+  };
 
   const save = useMutation({
     mutationFn: async () => {
-      if (editing) {
-        const { error } = await supabase.from("executives").update(form).eq("id", editing.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("executives").insert(form);
-        if (error) throw error;
+      if (!editing) {
+        throw new Error("Select an executive to edit.");
       }
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["executives"] });
-      qc.invalidateQueries({ queryKey: ["count", "executives"] });
-      toast.success(editing ? "Executive updated" : "Executive added");
-      setOpen(false);
-      setEditing(null);
-      setForm(empty);
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
 
-  const del = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("executives").delete().eq("id", id);
+      const payload = {
+        name: form.name,
+        position: form.position,
+        image: form.image ?? null,
+      };
+
+      const { error } = await supabase.from("executives").update(payload as any).eq("id", editing.id);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["executives"] });
       qc.invalidateQueries({ queryKey: ["count", "executives"] });
-      toast.success("Executive removed");
+      toast.success("Executive updated");
+      setOpen(false);
+      setEditing(null);
+      setForm(emptyForm);
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const openNew = () => { setEditing(null); setForm(empty); setOpen(true); };
   const openEdit = (e: Executive) => {
     setEditing(e);
-    setForm({ name: e.name, post_held: e.post_held, message: e.message });
+    setForm({ name: e.name, position: e.position, image: e.image ?? null });
     setOpen(true);
   };
 
@@ -84,12 +109,9 @@ function ExecutivesPage() {
           <p className="text-muted-foreground mt-1">{data.length} total</p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button className="w-full sm:w-auto" onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Add Executive</Button>
-          </DialogTrigger>
           <DialogContent className="max-w-[95vw] sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle>{editing ? "Edit" : "Add"} Executive</DialogTitle>
+              <DialogTitle>Edit Executive</DialogTitle>
             </DialogHeader>
             <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="space-y-3">
               <div className="space-y-1.5">
@@ -97,14 +119,44 @@ function ExecutivesPage() {
                 <Input id="name" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="post_held">Post Held</Label>
-                <Input id="post_held" required value={form.post_held} onChange={(e) => setForm({ ...form, post_held: e.target.value })} />
+                <Label htmlFor="position">Post Held</Label>
+                <Input id="position" required value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="message">What we have to say</Label>
-                <Textarea id="message" required rows={5} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} />
+                <Label htmlFor="image">Executive Photo</Label>
+                <Input
+                  id="image"
+                  type="file"
+                  accept="image/*"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+
+                    try {
+                      setIsUploading(true);
+                      const url = await uploadImage(file);
+                      setForm((current) => ({ ...current, image: url }));
+                      toast.success("Image uploaded");
+                    } catch (error) {
+                      toast.error(error instanceof Error ? error.message : "Image upload failed");
+                    } finally {
+                      setIsUploading(false);
+                    }
+                  }}
+                />
+                {isUploading ? (
+                  <p className="text-sm text-muted-foreground">Uploading image...</p>
+                ) : form.image ? (
+                  <div className="mt-2 space-y-2">
+                    <img src={form.image} alt="Executive preview" className="h-24 w-24 rounded-md border object-cover" />
+                    <p className="break-all text-xs text-muted-foreground">{form.image}</p>
+                  </div>
+                ) : null}
               </div>
-              <DialogFooter>
+              <DialogFooter className="gap-2 sm:gap-2">
+                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                  Cancel
+                </Button>
                 <Button type="submit" disabled={save.isPending}>{save.isPending ? "Saving..." : "Save"}</Button>
               </DialogFooter>
             </form>
@@ -116,9 +168,9 @@ function ExecutivesPage() {
         <Table className="min-w-[620px] w-full">
           <TableHeader>
             <TableRow>
+              <TableHead>Photo</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Post Held</TableHead>
-              <TableHead>Message</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -126,17 +178,20 @@ function ExecutivesPage() {
             {isLoading ? (
               <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
             ) : data.length === 0 ? (
-              <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">No executives yet. Add one to get started.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">No executives yet.</TableCell></TableRow>
             ) : data.map((e) => (
               <TableRow key={e.id}>
+                <TableCell>
+                  {e.image ? (
+                    <img src={e.image} alt={e.name} className="h-12 w-12 rounded-md border object-cover" />
+                  ) : (
+                    <div className="flex h-12 w-12 items-center justify-center rounded-md border text-xs text-muted-foreground">No image</div>
+                  )}
+                </TableCell>
                 <TableCell className="font-medium">{e.name}</TableCell>
-                <TableCell>{e.post_held}</TableCell>
-                <TableCell className="max-w-md truncate text-muted-foreground">{e.message}</TableCell>
-                <TableCell className="text-right space-x-1">
+                <TableCell>{e.position}</TableCell>
+                <TableCell className="text-right">
                   <Button size="icon" variant="ghost" onClick={() => openEdit(e)}><Pencil className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => { if (confirm(`Delete ${e.name}?`)) del.mutate(e.id); }}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
                 </TableCell>
               </TableRow>
             ))}
