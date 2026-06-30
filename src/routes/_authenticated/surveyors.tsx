@@ -208,7 +208,7 @@ function SurveyorsPage() {
           <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Surveyors</h1>
           <p className="text-muted-foreground mt-1">{data.length} total</p>
         </div>
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[280px]">
+        <div className="flex w-full flex-col gap-2 sm:flex-1 sm:max-w-xl">
           <Label htmlFor="surveyor-search" className="sr-only">Search surveyors</Label>
           <Input
             id="surveyor-search"
