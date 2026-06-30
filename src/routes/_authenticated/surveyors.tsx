@@ -6,6 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent as AlertDialogContentRoot,
+  AlertDialogDescription,
+  AlertDialogFooter as AlertDialogFooterRoot,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
 import { Plus, Pencil, Trash2 } from "lucide-react";
@@ -57,6 +67,8 @@ function SurveyorsPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Surveyor | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Surveyor | null>(null);
+  const [search, setSearch] = useState("");
   const [form, setForm] = useState(empty);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -131,6 +143,7 @@ function SurveyorsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["surveyors"] });
       qc.invalidateQueries({ queryKey: ["count", "surveyors"] });
+      setDeleteTarget(null);
       toast.success("Surveyor removed");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -159,6 +172,18 @@ function SurveyorsPage() {
     setOpen(true);
   };
 
+  const filteredData = (data as Surveyor[]).filter((s) => {
+    const query = search.trim().toLowerCase();
+    if (!query) return true;
+
+    const fullName = [s.title, s.first_name, s.middle_name, s.last_name]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return fullName.includes(query);
+  });
+
   const fields: { key: keyof typeof empty; label: string; type?: string }[] = [
     { key: "title", label: "Title" },
     { key: "first_name", label: "First Name" },
@@ -182,6 +207,15 @@ function SurveyorsPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Surveyors</h1>
           <p className="text-muted-foreground mt-1">{data.length} total</p>
+        </div>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[280px]">
+          <Label htmlFor="surveyor-search" className="sr-only">Search surveyors</Label>
+          <Input
+            id="surveyor-search"
+            placeholder="Search by name"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
@@ -282,9 +316,9 @@ function SurveyorsPage() {
           <TableBody>
             {isLoading ? (
               <TableRow><TableCell colSpan={13} className="text-center text-muted-foreground py-8">Loading...</TableCell></TableRow>
-            ) : data.length === 0 ? (
-              <TableRow><TableCell colSpan={13} className="text-center text-muted-foreground py-8">No surveyors yet. Add one to get started.</TableCell></TableRow>
-            ) : data.map((s) => (
+            ) : filteredData.length === 0 ? (
+              <TableRow><TableCell colSpan={13} className="text-center text-muted-foreground py-8">No surveyors match your search.</TableCell></TableRow>
+            ) : filteredData.map((s) => (
               <TableRow key={s.id}>
                 <TableCell>
                   {s.profile_image_url ? (
@@ -306,7 +340,7 @@ function SurveyorsPage() {
                 <TableCell>{s.is_active ? "Yes" : "No"}</TableCell>
                 <TableCell className="text-right space-x-1">
                   <Button size="icon" variant="ghost" onClick={() => openEdit(s)}><Pencil className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => { if (confirm(`Delete ${[s.title, s.first_name, s.middle_name, s.last_name].filter(Boolean).join(" ")}?`)) del.mutate(s.id); }}>
+                  <Button size="icon" variant="ghost" onClick={() => setDeleteTarget(s)}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </TableCell>
@@ -315,6 +349,26 @@ function SurveyorsPage() {
           </TableBody>
         </Table>
       </Card>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContentRoot>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete surveyor?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove {deleteTarget ? [deleteTarget.title, deleteTarget.first_name, deleteTarget.middle_name, deleteTarget.last_name].filter(Boolean).join(" ") : "this surveyor"} from the system.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooterRoot>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteTarget && del.mutate(deleteTarget.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooterRoot>
+        </AlertDialogContentRoot>
+      </AlertDialog>
     </div>
   );
 }
